@@ -56,3 +56,11 @@ function download(url,name){const a=document.createElement('a');a.href=url;a.dow
 function exportCSV(rows,name){const u=URL.createObjectURL(new Blob([csv(rows)],{type:'text/csv;charset=utf-8;'}));download(u,name);setTimeout(()=>URL.revokeObjectURL(u),1000);}
 export const exportVisitorsCSV=f=>exportCSV([['Name','Registration ID','Email','Phone','Expo','Type','Status','Checked in'],...getVisitors(f).map(v=>[v.name,v.registrationId,v.email,v.phone,getExpoById(v.expoId)?.name,v.type,v.status,v.checkedIn])],'visitors.csv');
 export const exportCheckInHistoryCSV=f=>exportCSV([['Visitor','Registration ID','Expo','Time','Gate','Employee','Status'],...getCheckInHistory(f).map(c=>[getVisitorById(c.visitorId)?.name,getVisitorById(c.visitorId)?.registrationId,getExpoById(c.expoId)?.name,c.time,c.gate,getEmployees().find(e=>e.id===c.employeeId)?.name,c.status])],'checkins.csv');
+
+// Camera scans verify and record entry in the same synchronous service operation.
+export function checkInScannedQR(text,expoId,gate,employeeId){
+  const result=verifyQRCode(text,expoId);
+  if(result.status!=='Valid Registration')return result;
+  const checkin=confirmEntry(result.visitor.token,expoId,gate,employeeId);
+  return {status:'Success',visitor:result.visitor,checkin,message:'Checked in automatically. Entry recorded successfully.'};
+}

@@ -1,16 +1,165 @@
-import React,{useState} from 'react';
-import {Search,X,ChevronLeft,ChevronRight} from 'lucide-react';
-export const Button=({children,variant='',className='',...p})=><button className={`btn ${variant} ${className}`} {...p}>{children}</button>;
-export const StatusBadge=({children})=><span className={`badge ${['Published','Confirmed','Success','Simulated Sent','Valid Registration','Active'].includes(children)?'green':['Cancelled','Failed','Invalid QR','Inactive'].includes(children)?'red':'amber'}`}>{children}</span>;
-export const PageHeader=({title,description,children})=><div className="page-header"><div><div className="eyebrow">WORKSPACE / {title.toUpperCase()}</div><h1>{title}</h1><p>{description}</p></div><div className="flex flex-wrap gap-2">{children}</div></div>;
-export const StatCard=({title,value,icon:Icon,foot})=><div className="card stat"><div className="flex justify-between items-center"><span className="text-slate-500 text-sm">{title}</span><span className="icon-box"><Icon size={19}/></span></div><strong>{value}</strong><p className="text-xs text-slate-500">{foot||'Across your workspace'}</p></div>;
-export const SearchInput=({value,onChange,placeholder='Search records�'})=><div className="search"><Search size={17}/><input aria-label={placeholder} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/></div>;
-export const FilterBar=({children})=><div className="filter-bar">{children}</div>;
-export const EmptyState=({message='No records found. Try adjusting your filters.'})=><div className="p-12 text-center text-slate-500">{message}</div>;
-export const LoadingState=()=> <div className="h-40 bg-slate-100 animate-pulse rounded-xl" aria-label="Loading"/>;
-export function Pagination({page,setPage,total,size=8}){return <div className="pagination"><span>{total} records � Page {page} of {Math.max(1,Math.ceil(total/size))}</span><div className="flex gap-2"><Button variant="secondary" disabled={page<=1} onClick={()=>setPage(page-1)}><ChevronLeft size={15}/>Previous</Button><Button variant="secondary" disabled={page*size>=total} onClick={()=>setPage(page+1)}>Next<ChevronRight size={15}/></Button></div></div>;}
-export function DataTable({columns,rows}){const [page,setPage]=useState(1);const safe=Math.min(page,Math.max(1,Math.ceil(rows.length/8)));return <><div className="overflow-x-auto"><table><thead><tr>{columns.map(c=><th key={c.label}>{c.label}</th>)}</tr></thead><tbody>{rows.slice((safe-1)*8,safe*8).map(r=><tr key={r.id}>{columns.map(c=><td key={c.label}>{c.render?c.render(r):r[c.key]}</td>)}</tr>)}</tbody></table></div>{!rows.length&&<EmptyState/>}<Pagination page={safe} setPage={setPage} total={rows.length}/></>;}
-export const FormField=({label,error,children})=><label className="field"><span>{label}</span>{children}{error&&<small className="text-red-600">{error}</small>}</label>;
-export function Modal({title,onClose,children}){const ref=React.useRef();React.useEffect(()=>{const before=document.activeElement;ref.current.showModal();return()=>before?.focus();},[]);return <dialog ref={ref} onCancel={onClose} onClick={e=>{if(e.target===ref.current)onClose();}}><div className="modal-head"><h2>{title}</h2><Button variant="ghost" aria-label="Close dialog" onClick={onClose}><X size={20}/></Button></div><div className="p-6">{children}</div></dialog>;}
-export const ConfirmDialog=({title,message,onConfirm,onClose})=><Modal title={title} onClose={onClose}><p className="mb-6 text-slate-500">{message}</p><div className="flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Keep record</Button><Button variant="danger" onClick={onConfirm}>Confirm</Button></div></Modal>;
-
+import React, { useState } from "react";
+import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+export const Button = ({ children, variant = "", className = "", ...p }) => (
+  <button className={`btn ${variant} ${className}`} {...p}>
+    {children}
+  </button>
+);
+export const StatusBadge = ({ children }) => (
+  <span
+    className={`badge ${["Published", "Confirmed", "Success", "Simulated Sent", "Valid Registration", "Active"].includes(children) ? "green" : ["Cancelled", "Failed", "Invalid QR", "Inactive"].includes(children) ? "red" : "amber"}`}
+  >
+    {children}
+  </span>
+);
+export const PageHeader = ({ title, description, children }) => (
+  <div className="page-header">
+    <div>
+      <div className="eyebrow">WORKSPACE / {title.toUpperCase()}</div>
+      <h1>{title}</h1>
+      <p>{description}</p>
+    </div>
+    <div className="flex flex-wrap gap-2">{children}</div>
+  </div>
+);
+export const StatCard = ({ title, value, icon: Icon, foot }) => (
+  <div className="card stat">
+    <div className="flex justify-between items-center">
+      <span className="text-slate-500 text-sm">{title}</span>
+      <span className="icon-box">
+        <Icon size={19} />
+      </span>
+    </div>
+    <strong>{value}</strong>
+    <p className="text-xs text-slate-500">{foot || "Across your workspace"}</p>
+  </div>
+);
+export const SearchInput = ({
+  value,
+  onChange,
+  placeholder = "Search records...",
+}) => (
+  <div className="search">
+    <Search size={17} />
+    <input
+      aria-label={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+    />
+  </div>
+);
+export const FilterBar = ({ children }) => (
+  <div className="filter-bar">{children}</div>
+);
+export const EmptyState = ({
+  message = "No records found. Try adjusting your filters.",
+}) => <div className="p-12 text-center text-slate-500">{message}</div>;
+export const LoadingState = () => (
+  <div
+    className="h-40 bg-slate-100 animate-pulse rounded-xl"
+    aria-label="Loading"
+  />
+);
+export function Pagination({ page, setPage, total, size = 8 }) {
+  return (
+    <div className="pagination">
+      <span>
+        {total} records · Page {page} of {Math.max(1, Math.ceil(total / size))}
+      </span>
+      <div className="flex gap-2">
+        <Button
+          variant="secondary"
+          disabled={page <= 1}
+          onClick={() => setPage(page - 1)}
+        >
+          <ChevronLeft size={15} />
+          Previous
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={page * size >= total}
+          onClick={() => setPage(page + 1)}
+        >
+          Next
+          <ChevronRight size={15} />
+        </Button>
+      </div>
+    </div>
+  );
+}
+export function DataTable({ columns, rows }) {
+  const [page, setPage] = useState(1);
+  const safe = Math.min(page, Math.max(1, Math.ceil(rows.length / 8)));
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              {columns.map((c) => (
+                <th key={c.label}>{c.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice((safe - 1) * 8, safe * 8).map((r) => (
+              <tr key={r.id}>
+                {columns.map((c) => (
+                  <td key={c.label}>{c.render ? c.render(r) : r[c.key]}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!rows.length && <EmptyState />}
+      <Pagination page={safe} setPage={setPage} total={rows.length} />
+    </>
+  );
+}
+export const FormField = ({ label, error, children }) => (
+  <label className="field">
+    <span>{label}</span>
+    {children}
+    {error && <small className="text-red-600">{error}</small>}
+  </label>
+);
+export function Modal({ title, onClose, children }) {
+  const ref = React.useRef();
+  React.useEffect(() => {
+    const before = document.activeElement;
+    ref.current.showModal();
+    return () => before?.focus();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      onCancel={onClose}
+      onClick={(e) => {
+        if (e.target === ref.current) onClose();
+      }}
+    >
+      <div className="modal-head">
+        <h2>{title}</h2>
+        <Button variant="ghost" aria-label="Close dialog" onClick={onClose}>
+          <X size={20} />
+        </Button>
+      </div>
+      <div className="p-6">{children}</div>
+    </dialog>
+  );
+}
+export const ConfirmDialog = ({ title, message, onConfirm, onClose }) => (
+  <Modal title={title} onClose={onClose}>
+    <p className="mb-6 text-slate-500">{message}</p>
+    <div className="flex justify-end gap-2">
+      <Button variant="secondary" onClick={onClose}>
+        Keep record
+      </Button>
+      <Button variant="danger" onClick={onConfirm}>
+        Confirm
+      </Button>
+    </div>
+  </Modal>
+);

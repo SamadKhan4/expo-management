@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import * as s from "../services/data";
 import { Button, Modal, StatusBadge } from "./common";
 import toast from "react-hot-toast";
-export default function Pass({ id, onClose, refresh }) {
+export default function Pass({ id, onClose, refresh, exhibitor = false }) {
   const { visitor: v, expo: e } = s.getQRPass(id);
   const [qr, setQr] = useState("");
   const [preview, setPreview] = useState("Email");
@@ -21,7 +21,7 @@ export default function Pass({ id, onClose, refresh }) {
     }
   };
   return (
-    <Modal title="Visitor pass" onClose={onClose}>
+    <Modal title={v.type === "Exhibitor" ? "Exhibitor entry pass" : "Visitor pass"} onClose={onClose}>
       <div className="ticket">
         <div className="eyebrow">EXPOFLOW · ADMISSION PASS</div>
         <h2>{e.name}</h2>
@@ -31,12 +31,13 @@ export default function Pass({ id, onClose, refresh }) {
         {qr && (
           <img
             src={qr}
-            alt="Visitor entry QR code"
+            alt={`${v.type || "Visitor"} entry QR code`}
             className="w-52 mx-auto my-4"
           />
         )}
         <h2>{v.name}</h2>
         <p className="font-mono">{v.registrationId}</p>
+        <p>{v.type} ? {v.company}</p>
         <div className="mt-3">
           <StatusBadge>{v.status}</StatusBadge>
         </div>
@@ -52,14 +53,14 @@ export default function Pass({ id, onClose, refresh }) {
         <Button variant="secondary" onClick={() => s.printQRPass(id)}>
           Print
         </Button>
-        <Button
+        {!exhibitor && <Button
           variant="secondary"
           onClick={() => act(() => s.regenerateQRToken(id))}
         >
           Replace QR token
-        </Button>
+        </Button>}
       </div>
-      <section className="bg-slate-50 p-4 rounded-xl print:hidden">
+      {!exhibitor && <section className="bg-slate-50 p-4 rounded-xl print:hidden">
         <div className="flex justify-between mb-3">
           <h3>Delivery preview</h3>
           <StatusBadge>Demo Mode</StatusBadge>
@@ -103,7 +104,7 @@ export default function Pass({ id, onClose, refresh }) {
               <StatusBadge>{d.status}</StatusBadge>
             </div>
           ))}
-      </section>
+      </section>}
     </Modal>
   );
 }

@@ -6,6 +6,40 @@ export function seed(){const t=Date.now();const expos=[['Future Tech Expo','TECH
 let memory;
 export function db(){if(memory)return memory;try{const d=JSON.parse(localStorage.getItem(KEY));if(!d||!['expos','visitors','employees','checkins','deliveries'].every(k=>Array.isArray(d[k])))throw Error();memory=d;}catch{memory=seed();localStorage.setItem(KEY,JSON.stringify(memory));}return memory;}
 function save(){localStorage.setItem(KEY,JSON.stringify(db()));window.dispatchEvent(new Event('expo-change'));}
+export const getExhibitors=()=>db().exhibitors||=[];
+let exhibitorSession;
+export const getCurrentExhibitor=()=>getExhibitors().find(e=>e.id===exhibitorSession)||null;
+export function logoutExhibitor(){exhibitorSession=undefined;}
+async function passwordDigest(password,salt){
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:new TextEncoder().encode(salt),iterations:100000,hash:'SHA-256'},key,256);
+  return Array.from(new Uint8Array(bits),x=>x.toString(16).padStart(2,'0')).join('');
+}
+export async function createExhibitorAccount(d){
+  if(!d.company?.trim())throw Error('Company name is required.');
+  if(typeof d.password!=='string'||d.password.length<8)throw Error('Use a password with at least 8 characters.');
+  const email=d.email?.trim().toLowerCase();
+  if(getExhibitors().some(e=>e.email===email))throw Error('This email already has an exhibitor account. Please log in.');
+  const salt=uid(),digest=await passwordDigest(d.password,salt);
+  // Recheck after hashing so simultaneous submissions cannot create duplicate accounts.
+  if(getExhibitors().some(e=>e.email===email))throw Error('This email already has an exhibitor account. Please log in.');
+  const member={name:d.name?.trim(),email,phone:d.phone,company:d.company.trim(),expoId:d.expoId,type:'Exhibitor',consent:!!d.consent};
+  validateVisitor(member);
+  const account={id:uid(),name:member.name,email,company:member.company,expoId:d.expoId,booth:'',salt,passwordDigest:digest,createdAt:now()};
+  const visitor=registerVisitor({...member,exhibitorId:account.id});
+  account.leadVisitorId=visitor.id;
+  getExhibitors().push(account);exhibitorSession=account.id;save();return account;
+}
+export async function loginExhibitor(email,password){
+  const account=getExhibitors().find(e=>e.email===email.trim().toLowerCase());
+  if(!account||await passwordDigest(password,account.salt)!==account.passwordDigest)throw Error('Email or password is incorrect.');
+  exhibitorSession=account.id;return account;
+}
+function requireExhibitor(){const account=getCurrentExhibitor();if(!account)throw Error('Please log in to your exhibitor account.');return account;}
+export function getExhibitorMembers(){const account=requireExhibitor();return getVisitors().filter(v=>v.exhibitorId===account.id);}
+export function addExhibitorMember(d){const account=requireExhibitor();return registerVisitor({name:d.name,email:d.email,phone:d.phone,consent:!!d.consent,company:account.company,expoId:account.expoId,type:'Exhibitor',exhibitorId:account.id});}
+export function cancelExhibitorMember(id){const account=requireExhibitor();if(id===account.leadVisitorId)throw Error('The primary contact pass cannot be cancelled here.');if(!getExhibitorMembers().some(v=>v.id===id))throw Error('Team member not found.');cancelRegistration(id);}
+export function assignExhibitorBooth(id,booth){const account=getExhibitors().find(e=>e.id===id);if(!account)throw Error('Exhibitor not found.');const value=booth.trim();if(value&&getExhibitors().some(e=>e.id!==id&&e.expoId===account.expoId&&e.booth.toLowerCase()===value.toLowerCase()))throw Error('This stall is already assigned in this expo.');account.booth=value;save();}
 export function resetDemo(){memory=seed();save();}
 export const getExpos=()=>db().expos;
 export const getExpoById=id=>getExpos().find(x=>x.id===id);

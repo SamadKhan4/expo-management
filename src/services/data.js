@@ -139,3 +139,108 @@ export function saveOrganiser(d){
   else {organiser={...fields,id:uid()};getOrganisers().push(organiser);}
   save();return organiser;
 }
+
+export function getOrganiserDashboardData(expoId){
+  const visitors=getVisitors({expoId}),active=visitors.filter(v=>v.status!=='Cancelled');
+  const activeIds=new Set(active.map(v=>v.id));
+  const seen=new Set();
+  const entries=getCheckInHistory({expoId}).filter(c=>{
+    if(c.status!=='Success'||!activeIds.has(c.visitorId)||seen.has(c.visitorId))return false;
+    seen.add(c.visitorId);return true;
+  });
+  const exhibitors=getExhibitors().filter(e=>e.expoId===expoId);
+  const stallRows=exhibitors.map(e=>{
+    const visited=new Set((db().stallCheckins||[]).filter(c=>c.expoId===expoId&&c.exhibitorId===e.id&&c.status==='Success'&&activeIds.has(c.visitorId)).map(c=>c.visitorId));
+    return {id:e.id,name:`${e.company} - ${e.booth||'Unassigned'}`,company:e.company,booth:e.booth,checkins:visited.size};
+  });
+  return {visitors,active,entries,exhibitors,stallRows,arrived:entries.length,rate:active.length?Math.round(entries.length/active.length*100):0};
+}
+
+export function verifyExhibitorLeadQR(raw){
+  const account=requireExhibitor();
+  const expo=getExpoById(account.expoId);
+  if(!expo||expo.status!=='Published'||Date.now()<+new Date(expo.start)||Date.now()>+new Date(expo.end))throw Error('Expo Not Currently Accepting Entries');
+  const result=verifyQRCode(String(raw).trim(),account.expoId);
+  if(!['Valid Registration','Already Checked In'].includes(result.status))throw Error(result.status);
+  return result.visitor;
+}
+export function getExhibitorLeads(){
+  const account=requireExhibitor();
+  return (db().exhibitorLeads||[]).filter(l=>l.exhibitorId===account.id&&l.expoId===account.expoId).map(l=>({...l,visitor:getVisitorById(l.visitorId)}));
+}
+export function saveExhibitorLead(raw,temperature){
+  const account=requireExhibitor();
+  if(!['Hot','Cold'].includes(temperature))throw Error('Choose Hot Lead or Cold Lead.');
+  const visitor=verifyExhibitorLeadQR(raw);
+  const leads=db().exhibitorLeads||=[];
+  let lead=leads.find(l=>l.exhibitorId===account.id&&l.visitorId===visitor.id&&l.expoId===account.expoId);
+  if(lead){lead.temperature=temperature;lead.updatedAt=now();}
+  else {lead={id:uid(),exhibitorId:account.id,expoId:account.expoId,visitorId:visitor.id,temperature,createdAt:now(),updatedAt:now()};leads.unshift(lead);}
+  const visits=db().stallCheckins||=[];
+  if(!visits.some(c=>c.exhibitorId===account.id&&c.visitorId===visitor.id&&c.expoId===account.expoId))visits.unshift({id:uid(),visitorId:visitor.id,exhibitorId:account.id,expoId:account.expoId,time:now(),gate:account.booth?`Stall ${account.booth}`:'Exhibitor stall',status:'Success'});
+  save();return lead;
+}
+
+// Presentation records are persisted once so every dashboard reads the same data.
+export function ensureOrganiserPresentationData(expoId){
+  const data=db(),expo=getExpoById(expoId);
+  if(!expo||(data.presentationDatasets||[]).includes(expoId))return false;
+  const specs=[['Acme Technologies','A-01',148],['Studio North','A-02',112],['Nexus Labs','B-01',96],['Vertex Industries','B-02',84],['GreenGrid Energy','C-01',65],['BuildCraft Solutions','C-02',45]];
+  const time=now(),employeeId=getEmployees()[0]?.id;
+  const activeIds=new Set(getVisitors({expoId}).filter(v=>v.status!=='Cancelled').map(v=>v.id));
+  const seen=new Set();
+  const checked=getCheckInHistory({expoId}).filter(c=>c.status==='Success'&&activeIds.has(c.visitorId)&&!seen.has(c.visitorId)&&seen.add(c.visitorId)).map(c=>getVisitorById(c.visitorId));
+  const visitors=[...checked];
+  const firstNames=['Aarav','Priya','Rohan','Ananya','Vikram','Ishita','Arjun','Diya','Kabir','Meera'];
+  const lastNames=['Sharma','Patel','Mehta','Singh','Rao','Shah','Nair','Kapoor','Jain','Iyer'];
+  while(visitors.length<550){
+    const i=visitors.length,id=uid();
+    const visitor={id,registrationId:`REG-${id.slice(0,8).toUpperCase()}`,name:`${firstNames[i%10]} ${lastNames[Math.floor(i/10)%10]}`,email:`visitor-${id.slice(0,8)}@example.com`,phone:`+9188${String(i).padStart(8,'0')}`,company:specs[i%specs.length][0],jobTitle:'Business Delegate',expoId,type:'Visitor',notes:'',consent:false,status:'Confirmed',token:uid()+uid(),createdAt:time,checkedIn:true,presentationRecord:true};
+    data.visitors.push(visitor);visitors.push(visitor);
+    data.checkins.push({id:uid(),visitorId:id,expoId,time,gate:['Gate A','Gate B','Gate C'][i%3],employeeId,status:'Success',presentationRecord:true});
+  }
+  let offset=0;
+  for(const [company,booth,count] of specs){
+    let exhibitor=getExhibitors().find(e=>e.expoId===expoId&&e.company===company);
+    if(!exhibitor){
+      exhibitor={id:uid(),name:`${company} Team`,company,email:`${company.toLowerCase().replace(/[^a-z]/g,'')}@example.com`,expoId,booth:getExhibitors().some(e=>e.expoId===expoId&&e.booth===booth)?`${booth}-P`:booth,salt:uid(),passwordDigest:'',createdAt:time,presentationRecord:true};
+      getExhibitors().push(exhibitor);
+    }else if(!exhibitor.booth&&!getExhibitors().some(e=>e.expoId===expoId&&e.booth===booth))exhibitor.booth=booth;
+    const visits=data.stallCheckins||=[];
+    const prior=new Set(visits.filter(c=>c.exhibitorId===exhibitor.id&&c.expoId===expoId&&c.status==='Success'&&activeIds.has(c.visitorId)).map(c=>c.visitorId));
+    let remaining=Math.max(0,count-prior.size);
+    for(let j=0;remaining>0&&j<visitors.length;j++){
+      const visitor=visitors[(offset+j)%visitors.length];
+      if(prior.has(visitor.id))continue;
+      visits.push({id:uid(),visitorId:visitor.id,exhibitorId:exhibitor.id,expoId,employeeId,time,gate:`Stall ${exhibitor.booth||booth}`,status:'Success',presentationRecord:true});
+      prior.add(visitor.id);remaining--;
+    }
+    offset+=count;
+  }
+  (data.presentationDatasets||=[]).push(expoId);save();return true;
+}
+
+export function ensureExhibitorPresentationLeads(){
+  const account=requireExhibitor(),data=db();
+  if(account.leadPresentationSeeded)return false;
+  const leads=data.exhibitorLeads||=[],visits=data.stallCheckins||=[];
+  const existing=new Set(getExhibitorLeads().map(l=>l.visitorId));
+  const visitorIds=[...new Set(visits.filter(c=>c.exhibitorId===account.id&&c.expoId===account.expoId&&c.status==='Success').map(c=>c.visitorId))];
+  const contacts=visitorIds.map(getVisitorById).filter(v=>v&&v.expoId===account.expoId&&v.status!=='Cancelled');
+  const names=['Aarav Sharma','Priya Patel','Rohan Mehta','Ananya Singh','Vikram Rao','Ishita Shah','Arjun Nair','Diya Kapoor','Kabir Jain','Meera Iyer','Aditya Verma','Sara Khan'];
+  const companies=['Acme Technologies','Studio North','Nexus Labs','Vertex Industries'];
+  while(contacts.length+existing.size<12){
+    const i=contacts.length,id=uid(),time=new Date(Date.now()-(12-i)*300000).toISOString();
+    const visitor={id,registrationId:`REG-${id.slice(0,8).toUpperCase()}`,name:names[i%names.length],email:`contact-${id.slice(0,8)}@example.com`,phone:`+9177${String(data.visitors.length).padStart(8,'0')}`,company:companies[i%companies.length],jobTitle:['Director','Purchase Manager','Business Owner','Operations Manager'][i%4],expoId:account.expoId,type:'Visitor',notes:'',consent:false,status:'Confirmed',token:uid()+uid(),createdAt:time,checkedIn:true,presentationRecord:true};
+    data.visitors.push(visitor);contacts.push(visitor);
+    data.checkins.push({id:uid(),visitorId:id,expoId:account.expoId,time,gate:['Gate A','Gate B','Gate C'][i%3],employeeId:getEmployees()[0]?.id,status:'Success',presentationRecord:true});
+  }
+  contacts.forEach((visitor,i)=>{
+    if(existing.has(visitor.id))return;
+    const time=visitor.createdAt;
+    leads.push({id:uid(),exhibitorId:account.id,expoId:account.expoId,visitorId:visitor.id,temperature:i%3===2?'Cold':'Hot',createdAt:time,updatedAt:time,presentationRecord:true});
+    existing.add(visitor.id);
+    if(!visits.some(c=>c.exhibitorId===account.id&&c.expoId===account.expoId&&c.visitorId===visitor.id))visits.push({id:uid(),visitorId:visitor.id,exhibitorId:account.id,expoId:account.expoId,time,gate:account.booth?`Stall ${account.booth}`:'Exhibitor stall',status:'Success',presentationRecord:true});
+  });
+  account.leadPresentationSeeded=true;save();return true;
+}

@@ -18,3 +18,5 @@
 .company-name{font-size:13px;font-weight:600;letter-spacing:0;line-height:1.4;text-align:center;}
 
 .company-logo-compact,.company-logo-pass{background:#111c32;padding:6px;}
+
+.company-logo{mix-blend-mode:screen;}

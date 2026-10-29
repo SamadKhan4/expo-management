@@ -4,7 +4,7 @@ import {Building2, Users, UserCheck, QrCode, LogOut, Plus} from 'lucide-react';
 import * as s from '../services/data';
 import {Button, PageHeader, FormField, DataTable, StatusBadge, StatCard, Modal, ConfirmDialog} from '../components/common';
 import Pass from '../components/Pass';
-import logo from '../logo.png';
+import logo from '../logo1-transparent.png';
 
 export function Exhibitors({refresh}) {
   const [edit,setEdit]=useState(null),[booth,setBooth]=useState(''),[error,setError]=useState('');

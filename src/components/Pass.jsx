@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import * as s from "../services/data";
 import { Button, Modal, StatusBadge } from "./common";
 import toast from "react-hot-toast";
-import logo from "../logo.png";
+import logo from "../logo1-transparent.png";
 export default function Pass({ id, onClose, refresh, exhibitor = false }) {
   const { visitor: v, expo: e } = s.getQRPass(id);
   const [qr, setQr] = useState("");

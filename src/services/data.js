@@ -98,3 +98,44 @@ export function checkInScannedQR(text,expoId,gate,employeeId){
   const checkin=confirmEntry(result.visitor.token,expoId,gate,employeeId);
   return {status:'Success',visitor:result.visitor,checkin,message:'Checked in automatically. Entry recorded successfully.'};
 }
+
+// Stall visits are separate from admission at the expo gate.
+export function verifyStallQRCode(raw,expoId,exhibitorId){
+  const exhibitor=getExhibitors().find(e=>e.id===exhibitorId&&e.expoId===expoId&&e.booth);
+  if(!exhibitor) return {status:'Invalid stall',message:'Select an assigned exhibitor stall.'};
+  const result=verifyQRCode(raw,expoId);
+  if(!['Valid Registration','Already Checked In'].includes(result.status))return result;
+  const expo=getExpoById(expoId);
+  if(expo.status!=='Published'||Date.now()<+new Date(expo.start)||Date.now()>+new Date(expo.end))return {status:'Expo Not Currently Accepting Entries'};
+  const prior=(db().stallCheckins||[]).find(c=>c.visitorId===result.visitor.id&&c.exhibitorId===exhibitorId);
+  if(prior)return {status:'Already Checked In',visitor:result.visitor,checkin:prior,message:'This visitor has already checked in at this stall.'};
+  return {status:'Valid Registration',visitor:result.visitor};
+}
+export function checkInAtStall(raw,expoId,exhibitorId,employeeId){
+  const result=verifyStallQRCode(raw,expoId,exhibitorId);
+  if(result.status!=='Valid Registration')return result;
+  if(!getEmployees().some(e=>e.id===employeeId&&e.active))throw Error('Select an active employee.');
+  const exhibitor=getExhibitors().find(e=>e.id===exhibitorId);
+  const checkin={id:uid(),visitorId:result.visitor.id,exhibitorId,expoId,employeeId,time:now(),gate:`Stall ${exhibitor.booth}`,status:'Success'};
+  (db().stallCheckins||=[]).unshift(checkin);save();
+  return {status:'Success',visitor:result.visitor,checkin,message:`Check-in recorded at ${exhibitor.company}, stall ${exhibitor.booth}.`};
+}
+export function getStallCheckInReport(expoId=''){
+  const visits=db().stallCheckins||[];
+  return getExhibitors().filter(e=>(!expoId||e.expoId===expoId)&&e.booth).map(e=>({id:e.id,name:`${e.company} ? ${e.booth}`,company:e.company,booth:e.booth,checkins:visits.filter(c=>c.exhibitorId===e.id&&c.expoId===e.expoId).length}));
+}
+
+export const REGISTRATION_TYPES=['Event Management','Organiser','Exhibitor','Visitor','VIP','Staff'];
+export const getOrganisers=()=>db().organisers||=[];
+export function saveOrganiser(d){
+  if(!d.name?.trim()||!d.company?.trim())throw Error('Name and organisation are required.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email||''))throw Error('Enter a valid email address.');
+  if(!getExpoById(d.expoId))throw Error('Select an event.');
+  if(getOrganisers().some(o=>o.id!==d.id&&o.expoId===d.expoId&&o.email.toLowerCase()===d.email.trim().toLowerCase()))throw Error('This organiser is already assigned to this event.');
+  const fields={name:d.name.trim(),company:d.company.trim(),email:d.email.trim().toLowerCase(),phone:d.phone?.trim()||'',expoId:d.expoId};
+  let organiser=d.id?getOrganisers().find(o=>o.id===d.id):null;
+  if(d.id&&!organiser)throw Error('Organiser not found.');
+  if(organiser)Object.assign(organiser,fields);
+  else {organiser={...fields,id:uid()};getOrganisers().push(organiser);}
+  save();return organiser;
+}

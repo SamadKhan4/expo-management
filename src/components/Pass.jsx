@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import * as s from "../services/data";
 import { Button, Modal, StatusBadge } from "./common";
 import toast from "react-hot-toast";
+import logo from "../logo.png";
 export default function Pass({ id, onClose, refresh, exhibitor = false }) {
   const { visitor: v, expo: e } = s.getQRPass(id);
   const [qr, setQr] = useState("");
@@ -15,7 +16,7 @@ export default function Pass({ id, onClose, refresh, exhibitor = false }) {
     try {
       fn();
       refresh();
-      toast.success("Demo action recorded");
+      toast.success("Action recorded");
     } catch (e) {
       toast.error(e.message);
     }
@@ -23,7 +24,8 @@ export default function Pass({ id, onClose, refresh, exhibitor = false }) {
   return (
     <Modal title={v.type === "Exhibitor" ? "Exhibitor entry pass" : "Visitor pass"} onClose={onClose}>
       <div className="ticket">
-        <div className="eyebrow">EXPOFLOW · ADMISSION PASS</div>
+        <img src={logo} alt="cis event & expertience logo" className="company-logo company-logo-pass"/>
+        <div className="eyebrow">cis event &amp; expertience · ADMISSION PASS</div>
         <h2>{e.name}</h2>
         <p>
           {e.venue} · {new Date(e.start).toLocaleDateString()}
@@ -63,7 +65,7 @@ export default function Pass({ id, onClose, refresh, exhibitor = false }) {
       {!exhibitor && <section className="bg-slate-50 p-4 rounded-xl print:hidden">
         <div className="flex justify-between mb-3">
           <h3>Delivery preview</h3>
-          <StatusBadge>Demo Mode</StatusBadge>
+          <StatusBadge>Preview</StatusBadge>
         </div>
         <div className="flex gap-2 mb-3">
           {["Email", "WhatsApp"].map((c) => (

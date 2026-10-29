@@ -4,6 +4,7 @@ import {Building2, Users, UserCheck, QrCode, LogOut, Plus} from 'lucide-react';
 import * as s from '../services/data';
 import {Button, PageHeader, FormField, DataTable, StatusBadge, StatCard, Modal, ConfirmDialog} from '../components/common';
 import Pass from '../components/Pass';
+import logo from '../logo.png';
 
 export function Exhibitors({refresh}) {
   const [edit,setEdit]=useState(null),[booth,setBooth]=useState(''),[error,setError]=useState('');
@@ -30,7 +31,7 @@ export default function ExhibitorPortal(){
     try{const result=mode==='login'?await s.loginExhibitor(d.email,d.password):await s.createExhibitorAccount({...d,consent:d.consent==='on'});setAccount(result);}catch(err){setError(err.message);}finally{setBusy(false);}
   }
   const members=account?s.getExhibitorMembers():[],expo=account?s.getExpoById(account.expoId):null;
-  return <div className="min-h-screen"><header className="topbar print:hidden"><Link className="font-bold text-xl text-indigo-600" to="/exhibitor">expoflow <span className="text-sm font-normal text-slate-500">Exhibitor portal</span></Link><span className="demo-tag">DEMO MODE</span>{account&&<Button variant="secondary" onClick={()=>{s.logoutExhibitor();setAccount(null);setPass(null);setAdding(false);setCancel(null);setError('');}}><LogOut size={16}/>Log out</Button>}</header>
+  return <div className="min-h-screen"><header className="topbar print:hidden"><Link className="flex items-center gap-3 font-bold text-xl text-indigo-600" to="/exhibitor"><img src={logo} alt="cis event & expertience logo" className="company-logo company-logo-compact"/><span className="text-sm font-normal text-slate-500">Exhibitor portal</span></Link>{account&&<Button variant="secondary" onClick={()=>{s.logoutExhibitor();setAccount(null);setPass(null);setAdding(false);setCancel(null);setError('');}}><LogOut size={16}/>Log out</Button>}</header>
     <main className="!max-w-6xl">
       {!account?<div className="max-w-xl mx-auto my-8"><div className="icon-box mb-3"><Building2 size={25}/></div><h1>{mode==='login'?'Welcome, exhibitors':'Register your company'}</h1><p className="text-slate-500 mb-6">Manage your stall team, access QR entry passes and track arrivals.</p>
         <form className="card p-6" onSubmit={authenticate} key={mode}><div className="space-y-4">
@@ -39,7 +40,7 @@ export default function ExhibitorPortal(){
           {mode==='signup'&&<label className="flex gap-2 items-center text-xs text-slate-500"><input name="consent" type="checkbox"/>Allow event-related messages</label>}
           {error&&<p role="alert" className="text-red-600 text-sm">{error}</p>}<Button className="w-full" disabled={busy}>{busy?'Please wait…':mode==='login'?'Log in':'Create exhibitor account'}</Button>
         </div></form><Button className="mt-3" variant="ghost" disabled={busy} onClick={()=>{setMode(mode==='login'?'signup':'login');setError('');}}>{mode==='login'?'New exhibitor? Register your company':'Already registered? Log in'}</Button>
-        <p className="text-xs text-slate-400 mt-5">Demo accounts and passes are saved in this browser. Use this same browser to try gate scanning. Login is required again after a page reload.</p>
+        <p className="text-xs text-slate-400 mt-5">Exhibitor accounts and passes are saved in this browser. Use this same browser to try gate scanning. Login is required again after a page reload.</p>
       </div>:<><PageHeader title={account.company} description={`${expo?.name||'Expo'} · Exhibitor workspace`}><Button onClick={()=>{setAdding(true);setError('');}}><Plus size={16}/>Add team member</Button></PageHeader>
         <div className="banner"><div><span className="eyebrow text-indigo-200">YOUR EXHIBITION SPACE</span><h2>{account.booth?`Stall ${account.booth}`:'Stall assignment pending'}</h2><p>{expo?.venue} · {expo&&new Date(expo.start).toLocaleDateString()} · {expo?.status}</p></div><Button onClick={()=>setPass(account.leadVisitorId)}><QrCode size={17}/>My entry pass</Button></div>
         <div className="grid sm:grid-cols-3 gap-5 mb-6"><StatCard title="Team passes" value={members.filter(v=>v.status!=='Cancelled').length} icon={Users} foot="Active exhibitor registrations"/><StatCard title="Checked in" value={members.filter(v=>v.checkedIn).length} icon={UserCheck} foot="Entry recorded by gate staff"/><StatCard title="Stall" value={account.booth||'Pending'} icon={Building2} foot="Assigned by the organizer"/></div>
